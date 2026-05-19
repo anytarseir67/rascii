@@ -40,6 +40,9 @@ struct Args {
     out_img: String,
 }
 
+// code pulled out of https://github.com/jerry73204/rust-cv-convert because the crate was being stinky
+// ----------------------
+
 pub use element_type::*;
 
 use crate::mat_ext::MatExt;
@@ -185,6 +188,9 @@ where
         }),
     }
 }
+
+// ----------------------
+// end of cv-convert code
 
 fn bright_map_char(bright: u8) -> &'static str {
     let pos = (bright as f32 * (CHAR_LIST.len() - 1) as f32) / 255.0;
