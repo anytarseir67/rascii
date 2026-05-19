@@ -1,0 +1,5 @@
+[env]
+OPENCV_DISABLE_PROBES= { value = "vcpkg,vcpkg_cmake,cmake,pkg_config", force = true }
+
+[build]
+rustflags = ["-C", "target-cpu=native"]
