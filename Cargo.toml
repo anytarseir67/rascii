@@ -13,4 +13,3 @@ opencv = {version="0.98.2", features=["videoio"]}
 
 [profile.release]
 lto = true
-codegen-units = 1
