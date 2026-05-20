@@ -13,8 +13,8 @@ use std::thread;
 
 const CHAR: &str = "@";
 const BACK_DARKEN: f32= 0.7;
-const OUTPUT_WIDTH: u32 = 70; 
-const CHAR_SIZE: f32 = 35.0;
+const OUTPUT_WIDTH: u32 = 80; 
+const CHAR_SIZE: f32 = 23.0;
 const VCODEC: &str = "libx264";
 const CHAR_LIST: [&str; 3] = ["#", "%", "@"];
 
@@ -34,10 +34,10 @@ struct Args {
     vcodec: String,
 
     #[arg(short, long)]
-    in_img: String,
+    in_media: String,
 
     #[arg(short, long)]
-    out_img: String,
+    out_media: String,
 }
 
 // code pulled out of https://github.com/jerry73204/rust-cv-convert because the crate was being stinky
@@ -197,7 +197,7 @@ fn bright_map_char(bright: u8) -> &'static str {
     return CHAR_LIST[pos.round() as usize];
 }
 
-fn proc_img(back_darken: f32, in_img: DynamicImage, sample_width: u32, sample_height: u32, w: u32, h: u32, scale: PxScale, font: FontRef, output: &Path) {
+fn proc_img(back_darken: f32, in_media: DynamicImage, sample_width: u32, sample_height: u32, w: u32, h: u32, scale: PxScale, font: FontRef, output: &Path) {
     let mut image = RgbaImage::new(w * sample_width, h * sample_height);
 
     let mut x: i32 = 0;
@@ -205,7 +205,7 @@ fn proc_img(back_darken: f32, in_img: DynamicImage, sample_width: u32, sample_he
     
     for height in 0..sample_height {
         for width in 0..sample_width {
-            let col = in_img.get_pixel(width, height).to_rgba();
+            let col = in_media.get_pixel(width, height).to_rgba();
             // col.to_luma()[0]
             let _char = bright_map_char(col.to_luma()[0]);
             
@@ -235,7 +235,6 @@ fn main() {
         y: args.char_size,
     };
     let (w, h) = text_size(scale, &font, CHAR);
-    println!("{} - {}", w, h);
     if w < h {
         let nw = h as f32 / w as f32;
         scale = PxScale {
@@ -244,13 +243,12 @@ fn main() {
         };
     }
     let (w, h) = text_size(scale, &font, CHAR);
-    println!("{} - {}", w, h);
 
+    // TODO: make this less dumb
     let video_extensions: [&str; 4] = [".mp4", ".webm", ".mkv", ".mov"];
     
-    if video_extensions.iter().any(|&s| args.in_img.ends_with(s)) {
-        println!("not poggers - {}", args.in_img);
-        let mut capture = videoio::VideoCapture::from_file(&args.in_img, videoio::CAP_ANY).unwrap();
+    if video_extensions.iter().any(|&s| args.in_media.ends_with(s)) {
+        let mut capture = videoio::VideoCapture::from_file(&args.in_media, videoio::CAP_ANY).unwrap();
 
         if !capture.is_opened().unwrap_or(false) {
             panic!("Unable to open the video file!");
@@ -304,8 +302,8 @@ fn main() {
         }
 
         let codec = args.vcodec;
-        let orig_video = args.in_img;
-        let out_video = args.out_img;
+        let orig_video = args.in_media;
+        let out_video = args.out_media;
 
         // reprocess frames into video
         std::process::Command::new("ffmpeg").args(["-loglevel", "quiet", "-hide_banner", "-nostats", "-r", &format!("{fps}"), "-i", "./rascii_frames/%01d.png", "-vcodec", &format!("{codec}"), "-crf", "0", "-y", "temp.mp4"]).output().unwrap();
@@ -314,9 +312,8 @@ fn main() {
         std::fs::remove_dir_all("./rascii_frames").unwrap();
     }
     else {
-        println!("poggers");
-        let in_im = Path::new(&args.in_img);
-        let path = Path::new(&args.out_img);
+        let in_im = Path::new(&args.in_media);
+        let path = Path::new(&args.out_media);
         let mut sample = image::open(in_im).unwrap();
         sample = sample.resize(args.width, args.width, imageops::FilterType::Nearest);
         let sample_height = sample.height();
