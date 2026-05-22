@@ -222,7 +222,8 @@ fn proc_img(back_darken: f32, in_media: DynamicImage, sample_width: u32, sample_
         y += h as i32;
         x = 0;
     }
-    image.save(output).unwrap();
+    
+    image.save(output).unwrap_or_else(|_| panic!("failed to save output image {:?}", output.to_str()));
 }
 
 fn main() {
@@ -244,22 +245,30 @@ fn main() {
     }
     let (w, h) = text_size(scale, &font, CHAR);
 
-    // TODO: make this less dumb
-    let video_extensions: [&str; 4] = [".mp4", ".webm", ".mkv", ".mov"];
-    
-    if video_extensions.iter().any(|&s| args.in_media.ends_with(s)) {
-        let mut capture = videoio::VideoCapture::from_file(&args.in_media, videoio::CAP_ANY).unwrap();
+    let in_im = Path::new(&args.in_media);
+    let path = Path::new(&args.out_media);
+    let res = image::open(in_im);
+    if res.is_ok() {
+        let mut sample = res.unwrap();
+        sample = sample.resize(args.width, args.width, imageops::FilterType::Nearest);
+        let sample_height = sample.height();
+        let sample_width = sample.width();
+        proc_img(args.back_darken, sample, sample_width, sample_height, w, h, scale, font, &path);
+    }    
+    else {
+        let mut capture = videoio::VideoCapture::from_file(&args.in_media, videoio::CAP_ANY).expect("Failed to open the input media.");
 
         if !capture.is_opened().unwrap_or(false) {
-            panic!("Unable to open the video file!");
+            panic!("Failed to open the input media.");
         }
 
-        let input_sample_width = capture.get(videoio::CAP_PROP_FRAME_WIDTH).unwrap();
-        let input_sample_height = capture.get(videoio::CAP_PROP_FRAME_HEIGHT).unwrap();
+        // should consider removing this, it's nice to see the resolution, but it's also just additional panic potential so...
+        let input_sample_width = capture.get(videoio::CAP_PROP_FRAME_WIDTH).expect("Failed to get properties of input media.");
+        let input_sample_height = capture.get(videoio::CAP_PROP_FRAME_HEIGHT).expect("Failed to get properties of input media.");
         println!("{} - {} ", input_sample_width, input_sample_height);
         
-        let fps = capture.get(videoio::CAP_PROP_FPS).unwrap();
-        let frames = capture.get(videoio::CAP_PROP_FRAME_COUNT).unwrap() as u32;
+        let fps = capture.get(videoio::CAP_PROP_FPS).expect("Failed to get properties of input media.");
+        let frames = capture.get(videoio::CAP_PROP_FRAME_COUNT).expect("Failed to get properties of input media.") as u32;
 
         println!("{} / {}", frames, fps);
 
@@ -267,16 +276,17 @@ fn main() {
 
         // ----------------------------------------
 
-        std::fs::create_dir("./rascii_frames").unwrap();
+        std::fs::remove_dir_all("./rascii_frames").ok(); // remove potential leftover directory and frames
+        std::fs::create_dir("./rascii_frames").expect("Failed to create frames directory.");
 
         let mut threads = Vec::new();
 
         for i in 0..frames {
-            capture.read(&mut frame).unwrap();
+            capture.read(&mut frame).expect("OpenCV failed to read a frame from the input media.");
 
             // color space conversion
             let mut new_frame = Mat::default();
-            opencv::imgproc::cvt_color_def(&frame, &mut new_frame, COLOR_BGR2RGB).unwrap();
+            opencv::imgproc::cvt_color_def(&frame, &mut new_frame, COLOR_BGR2RGB).expect("Color space conversion for a frame failed.");
 
             // clone variables for threading
             let _back_darken = args.back_darken.clone();
@@ -287,7 +297,7 @@ fn main() {
 
             // spawn conversion thread
             let handle = thread::spawn(move || {
-                let mut _img = new_frame.try_to_cv().unwrap();
+                let mut _img = new_frame.try_to_cv().expect("Failed to convert Mat to DynamicImage");
                 _img = _img.resize(args.width, args.width, imageops::FilterType::Nearest);
                 let sample_width = _img.width();
                 let sample_height = _img.height();
@@ -306,18 +316,10 @@ fn main() {
         let out_video = args.out_media;
 
         // reprocess frames into video
-        std::process::Command::new("ffmpeg").args(["-loglevel", "quiet", "-hide_banner", "-nostats", "-r", &format!("{fps}"), "-i", "./rascii_frames/%01d.png", "-vcodec", &format!("{codec}"), "-crf", "0", "-y", "temp.mp4"]).output().unwrap();
-        std::process::Command::new("ffmpeg").args(["-loglevel", "quiet", "-hide_banner", "-nostats", "-i", "temp.mp4", "-i", &format!("{orig_video}"), "-vcodec", &format!("{codec}"), "-map", "0:v", "-map", "1:a?", "-crf", "0", "-y", &format!("{out_video}")]).output().unwrap();
+        std::process::Command::new("ffmpeg").args(["-loglevel", "quiet", "-hide_banner", "-nostats", "-r", &format!("{fps}"), "-i", "./rascii_frames/%01d.png", "-vcodec", &format!("{codec}"), "-crf", "0", "-y", "rascii_temp.mp4"]).output().unwrap();
+        std::process::Command::new("ffmpeg").args(["-loglevel", "quiet", "-hide_banner", "-nostats", "-i", "rascii_temp.mp4", "-i", &format!("{orig_video}"), "-vcodec", &format!("{codec}"), "-map", "0:v", "-map", "1:a?", "-crf", "0", "-y", &format!("{out_video}")]).output().unwrap();
         
-        std::fs::remove_dir_all("./rascii_frames").unwrap();
-    }
-    else {
-        let in_im = Path::new(&args.in_media);
-        let path = Path::new(&args.out_media);
-        let mut sample = image::open(in_im).unwrap();
-        sample = sample.resize(args.width, args.width, imageops::FilterType::Nearest);
-        let sample_height = sample.height();
-        let sample_width = sample.width();
-        proc_img(args.back_darken, sample, sample_width, sample_height, w, h, scale, font, &path);
+        std::fs::remove_dir_all("./rascii_frames").expect("Failed to remove frames directory.");
+        std::fs::remove_file("./rascii_temp.mp4").expect("Failed to remove rascii_temp.mp4");
     }
 }
