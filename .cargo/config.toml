@@ -1,2 +1,5 @@
-[build]
+[alias]
+build-pgo = "run --bin build_pgo"
+
+[target.'cfg(any(target_family = "unix", target_family = "windows"))']
 rustflags = ["-C", "target-cpu=native"]

@@ -18,5 +18,12 @@ Options:
   -h, --help                       Print help
 ```
 
+## Pgo
+to build with pgo, you should first install [cargo-pgo](https://github.com/Kobzol/cargo-pgo).
+
+then you can either:
+* run the commands as stated on the cargo-pgo readme
+* or you can use the custom `cargo build-pgo` command (you must provide a `pgo.mp4` file in the rascii folder)
+
 ## Attribution
 this repository features sections of code pulled from [cv-convert](https://github.com/jerry73204/rust-cv-convert), to work around issues with the crate itself.
