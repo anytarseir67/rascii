@@ -197,12 +197,12 @@ fn bright_map_char(bright: u8) -> &'static str {
     return CHAR_LIST[pos.round() as usize];
 }
 
-fn proc_img(back_darken: f32, in_media: DynamicImage, sample_width: u32, sample_height: u32, w: u32, h: u32, scale: PxScale, font: FontRef, output: &Path) {
+fn proc_img(back_darken: f32, in_media: DynamicImage, sample_width: u32, sample_height: u32, w: u32, h: u32, scale: PxScale, output: &Path) {
     let mut image = RgbaImage::new(w * sample_width, h * sample_height);
 
     let mut x: i32 = 0;
     let mut y: i32 = 0;
-    
+    let font = FontRef::try_from_slice(include_bytes!("../VT323-Regular.ttf")).unwrap();
     for height in 0..sample_height {
         for width in 0..sample_width {
             let col = in_media.get_pixel(width, height).to_rgba();
@@ -253,7 +253,7 @@ fn main() {
         sample = sample.resize(args.width, args.width, imageops::FilterType::Nearest);
         let sample_height = sample.height();
         let sample_width = sample.width();
-        proc_img(args.back_darken, sample, sample_width, sample_height, w, h, scale, font, &path);
+        proc_img(args.back_darken, sample, sample_width, sample_height, w, h, scale, &path);
     }    
     else {
         let mut capture = videoio::VideoCapture::from_file(&args.in_media, videoio::CAP_ANY).expect("Failed to open the input media.");
@@ -293,7 +293,7 @@ fn main() {
             let _w = w.clone();
             let _h = h.clone();
             let _scale = scale.clone();
-            let _font = font.clone();
+            // let _font = font.clone();
 
             // spawn conversion thread
             let handle = thread::spawn(move || {
@@ -302,7 +302,7 @@ fn main() {
                 let sample_width = _img.width();
                 let sample_height = _img.height();
                 let path = format!("./rascii_frames/{i}.png");
-                proc_img(_back_darken, _img, sample_width, sample_height, _w, _h, _scale, _font, Path::new(&path));
+                proc_img(_back_darken, _img, sample_width, sample_height, _w, _h, _scale, Path::new(&path));
             });
             threads.push(handle);
         }
