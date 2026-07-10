@@ -206,13 +206,10 @@ fn proc_img(back_darken: f32, in_media: DynamicImage, sample_width: u32, sample_
     for height in 0..sample_height {
         for width in 0..sample_width {
             let col = in_media.get_pixel(width, height).to_rgba();
-            // col.to_luma()[0]
             let _char = bright_map_char(col.to_luma()[0]);
             
             let mut back_col = col.clone();
-            back_col[0] = (back_col[0] as f32 * back_darken) as u8;
-            back_col[1] = (back_col[1] as f32 * back_darken) as u8;
-            back_col[2] = (back_col[2] as f32 * back_darken) as u8;
+            back_col.apply_without_alpha(|x| {(x as f32 * back_darken) as u8});
 
             draw_filled_rect_mut(&mut image, Rect::at(x, y).of_size(w, h), back_col);
 
@@ -293,7 +290,6 @@ fn main() {
             let _w = w.clone();
             let _h = h.clone();
             let _scale = scale.clone();
-            // let _font = font.clone();
 
             // spawn conversion thread
             let handle = thread::spawn(move || {
